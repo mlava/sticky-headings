@@ -10,7 +10,8 @@ export default {
         stickyHeadingsState = false; //onload
 
         myEventHandler = function (e) {
-            if (e.key.toLowerCase() === 's' && e.shiftKey && e.altKey) {
+            if (e.code === 'KeyS' && e.shiftKey && e.altKey) {
+                e.preventDefault();
                 stickyHeadingsToggle();
             }
         }
