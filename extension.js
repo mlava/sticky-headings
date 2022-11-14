@@ -17,25 +17,21 @@ export default {
             appBG = "white";
         } else {
             appBG = RGBAToHexA(compApp["backgroundColor"], true);
-            console.info(appBG);
         }
         if (comph1["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph1["backgroundColor"] == "rgb(255, 255, 255)") {
             h1BG = appBG;
         } else {
             h1BG = RGBAToHexA(comph1["backgroundColor"], true);
-            console.info(h1BG);
         }
         if (comph2["backgroundColor"] == "rgba(0, 0, 0, 0)") {
             h2BG = appBG;
         } else {
             h2BG = RGBAToHexA(comph2["backgroundColor"], true);
-            console.info(h2BG);
         }
         if (comph3["backgroundColor"] == "rgba(0, 0, 0, 0)") {
             h3BG = appBG;
         } else {
             h3BG = RGBAToHexA(comph3["backgroundColor"], true);
-            console.info(h3BG);
         }
         let h1CSS = ".rm-heading-level-1 > .rm-block-main.rm-block__self:first-child {background-color: "+ h1BG +" !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 18 !important; top: -1px !important;}";
         let h2CSS = ".rm-heading-level-2 > .rm-block-main.rm-block__self:first-child {background-color: "+ h2BG +" !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 17 !important; top: "+h2Margin+"px !important;}";
