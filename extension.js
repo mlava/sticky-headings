@@ -55,20 +55,27 @@ function stickyHeadingsOn() {
     var h3Margin = 0;
     var cssString = "";
 
+    const body = document.body;
     const app = document.querySelector(".roam-body .roam-app");
     const compApp = window.getComputedStyle(app);
-    if (compApp["backgroundColor"] == "rgba(0, 0, 0, 0)") {
-        appBG = "white";
+    if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
+        appBG = "#30404d";
     } else {
-        appBG = RGBAToHexA(compApp["backgroundColor"], true);
+        if (compApp["backgroundColor"] == "rgba(0, 0, 0, 0)") {
+            appBG = "white";
+        } else {
+            appBG = RGBAToHexA(compApp["backgroundColor"], true);
+        }
     }
-
+    const appWidth = compApp["width"];
     const h1 = document.querySelector(".rm-heading-level-1 > .rm-block-main.rm-block__self:first-child");
     const h2 = document.querySelector(".rm-heading-level-2 > .rm-block-main.rm-block__self:first-child");
     const h3 = document.querySelector(".rm-heading-level-3 > .rm-block-main.rm-block__self:first-child");
     if (h1 != null) {
         comph1 = window.getComputedStyle(h1);
-        if (comph1["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph1["backgroundColor"] == "rgb(255, 255, 255)") {
+        if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
+            h1BG = "#30404d";
+        } else if (comph1["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph1["backgroundColor"] == "rgb(255, 255, 255)") {
             h1BG = appBG;
         } else {
             h1BG = RGBAToHexA(comph1["backgroundColor"], true);
@@ -83,7 +90,9 @@ function stickyHeadingsOn() {
     }
     if (h2 != null) {
         comph2 = window.getComputedStyle(h2);
-        if (comph2["backgroundColor"] == "rgba(0, 0, 0, 0)") {
+        if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
+            h2BG = "#30404d";
+        } else if (comph2["backgroundColor"] == "rgba(0, 0, 0, 0)") {
             h2BG = appBG;
         } else {
             h2BG = RGBAToHexA(comph2["backgroundColor"], true);
@@ -94,12 +103,14 @@ function stickyHeadingsOn() {
     }
     if (h3 != null) {
         comph3 = window.getComputedStyle(h3);
-        if (comph3["backgroundColor"] == "rgba(0, 0, 0, 0)") {
+        if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
+            h3BG = "#30404d";
+        } else if (comph3["backgroundColor"] == "rgba(0, 0, 0, 0)") {
             h3BG = appBG;
         } else {
             h3BG = RGBAToHexA(comph3["backgroundColor"], true);
         }
-        h3CSS = ".rm-heading-level-3 > .rm-block-main.rm-block__self:first-child {background-color: " + h3BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 16 !important; top: " + h3Margin + "px !important;}";
+        h3CSS = ".rm-heading-level-3 > .rm-block-main.rm-block__self:first-child {background-color: red /*" + h3BG + "*/ !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 16 !important; top: " + h3Margin + "px !important;}";
         cssString += h3CSS;
     }
     // CSS adapted and modified from a post on Slack shared by Fabrice Gallet https://roamresearch.slack.com/archives/C016N2B66JU/p1667846823724739?thread_ts=1667816335.849789&cid=C016N2B66JU
