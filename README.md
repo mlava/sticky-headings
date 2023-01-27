@@ -1,5 +1,8 @@
 Do you ever get lost in your document, and not know where you are? Make your Roam Research headings 'sticky' so that when you scroll down your headings stick at the top of the page.
 
+**New:**
+- now compatible with Augmented Headings extension
+
 No configuration is required. When the extension is loaded you have two options to turn on Sticky Headings such that any blocks set as H1, H2 or H3 in your graph will be sticky:
 1. via Command Palette using 'Toggle Sticky Headings'
 2. using a keyboard shortcut ALT-SHIFT-s
