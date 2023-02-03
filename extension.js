@@ -126,7 +126,6 @@ function stickyHeadingsOn() {
     if (document.querySelector("[data-tag^='h4'] + .rm-highlight")) {
         const h4 = document.querySelector("[data-page-links^='[\"h4\"]'] > .rm-block-main.rm-block__self:first-child");
         var comph4 = window.getComputedStyle(h4);
-        console.info(comph4["height"])
         if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
             h4BG = "#30404d";
         } else if (comph4["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph4["backgroundColor"] == "rgb(255, 255, 255)") {
