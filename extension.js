@@ -123,46 +123,55 @@ function stickyHeadingsOn() {
         cssString += h3CSS;
         h4Margin = h3Margin + parseInt(comph3.height);
     }
-    if (document.querySelector("[data-tag^='h4'] + .rm-highlight")) {
-        const h4 = document.querySelector("[data-page-links^='[\"h4\"]'] > .rm-block-main.rm-block__self:first-child");
-        var comph4 = window.getComputedStyle(h4);
-        if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
-            h4BG = "#30404d";
-        } else if (comph4["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph4["backgroundColor"] == "rgb(255, 255, 255)") {
-            h4BG = appBG;
-        } else {
-            h4BG = RGBAToHexA(comph4["backgroundColor"], true);
+    if (localStorage.getItem("augmented_headings:h4")) {
+        var h4Tag = localStorage.getItem("augmented_headings:h4");
+        if (document.querySelector("[data-tag^='" + h4Tag + "'] + .rm-highlight")) {
+            const h4 = document.querySelector("[data-page-links^='[\"" + h4Tag + "\"]'] > .rm-block-main.rm-block__self:first-child");
+            var comph4 = window.getComputedStyle(h4);
+            if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
+                h4BG = "#30404d";
+            } else if (comph4["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph4["backgroundColor"] == "rgb(255, 255, 255)") {
+                h4BG = appBG;
+            } else {
+                h4BG = RGBAToHexA(comph4["backgroundColor"], true);
+            }
+            var h4CSS = "[data-page-links^='[\"" + h4Tag + "\"]'] > .rm-block-main.rm-block__self:first-child {background-color: " + h4BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 15 !important; top: " + h4Margin + "px !important;} ";
+            cssString += h4CSS;
+            h5Margin = h4Margin + parseInt(comph4.height);
         }
-        var h4CSS = "[data-page-links^='[\"h4\"]'] > .rm-block-main.rm-block__self:first-child {background-color: " + h4BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 15 !important; top: " + h4Margin + "px !important;} ";
-        cssString += h4CSS;
-        h5Margin = h4Margin + parseInt(comph4.height);
     }
-    if (document.querySelector("[data-tag^='h5'] + .rm-highlight")) {
-        const h5 = document.querySelector("[data-page-links^='[\"h5\"]'] > .rm-block-main.rm-block__self:first-child");
-        var comph5 = window.getComputedStyle(h5);
-        if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
-            h5BG = "#30404d";
-        } else if (comph5["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph5["backgroundColor"] == "rgb(255, 255, 255)") {
-            h5BG = appBG;
-        } else {
-            h5BG = RGBAToHexA(comph5["backgroundColor"], true);
+    if (localStorage.getItem("augmented_headings:h5")) {
+        var h5Tag = localStorage.getItem("augmented_headings:h5");
+        if (document.querySelector("[data-tag^='" + h5Tag + "'] + .rm-highlight")) {
+            const h5 = document.querySelector("[data-page-links^='[\"" + h5Tag + "\"]'] > .rm-block-main.rm-block__self:first-child");
+            var comph5 = window.getComputedStyle(h5);
+            if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
+                h5BG = "#30404d";
+            } else if (comph5["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph5["backgroundColor"] == "rgb(255, 255, 255)") {
+                h5BG = appBG;
+            } else {
+                h5BG = RGBAToHexA(comph5["backgroundColor"], true);
+            }
+            var h5CSS = "[data-page-links^='[\"" + h5Tag + "\"]'] > .rm-block-main.rm-block__self:first-child {background-color: " + h5BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 14 !important; top: " + h5Margin + "px !important;} ";
+            cssString += h5CSS;
+            h6Margin = h5Margin + parseInt(comph5.height);
         }
-        var h5CSS = "[data-page-links^='[\"h5\"]'] > .rm-block-main.rm-block__self:first-child {background-color: " + h5BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 14 !important; top: " + h5Margin + "px !important;} ";
-        cssString += h5CSS;
-        h6Margin = h5Margin + parseInt(comph5.height);
     }
-    if (document.querySelector("[data-tag^='h6'] + .rm-highlight")) {
-        const h6 = document.querySelector("[data-page-links^='[\"h6\"]'] > .rm-block-main.rm-block__self:first-child");
-        var comph6 = window.getComputedStyle(h6);
-        if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
-            h6BG = "#30404d";
-        } else if (comph6["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph6["backgroundColor"] == "rgb(255, 255, 255)") {
-            h6BG = appBG;
-        } else {
-            h6BG = RGBAToHexA(comph6["backgroundColor"], true);
+    if (localStorage.getItem("augmented_headings:h6")) {
+        var h6Tag = localStorage.getItem("augmented_headings:h6");
+        if (document.querySelector("[data-tag^='" + h6Tag + "'] + .rm-highlight")) {
+            const h6 = document.querySelector("[data-page-links^='[\"" + h6Tag + "\"]'] > .rm-block-main.rm-block__self:first-child");
+            var comph6 = window.getComputedStyle(h6);
+            if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
+                h6BG = "#30404d";
+            } else if (comph6["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph6["backgroundColor"] == "rgb(255, 255, 255)") {
+                h6BG = appBG;
+            } else {
+                h6BG = RGBAToHexA(comph6["backgroundColor"], true);
+            }
+            var h6CSS = "[data-page-links^='[\"" + h6Tag + "\"]'] > .rm-block-main.rm-block__self:first-child {background-color: " + h6BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 13 !important; top: " + h6Margin + "px !important;} ";
+            cssString += h6CSS;
         }
-        var h6CSS = "[data-page-links^='[\"h6\"]'] > .rm-block-main.rm-block__self:first-child {background-color: " + h6BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 13 !important; top: " + h6Margin + "px !important;} ";
-        cssString += h6CSS;
     }
     // CSS adapted and modified from a post on Slack shared by Fabrice Gallet https://roamresearch.slack.com/archives/C016N2B66JU/p1667846823724739?thread_ts=1667816335.849789&cid=C016N2B66JU
 
