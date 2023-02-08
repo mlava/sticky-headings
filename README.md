@@ -1,6 +1,7 @@
 Do you ever get lost in your document, and not know where you are? Make your Roam Research headings 'sticky' so that when you scroll down your headings stick at the top of the page.
 
 **New:**
+- always on mode (turn on in Roam Depot settings) - keep Sticky Headings enabled. You can still turn it off while on an individual page using the Command Palette or keyboard shortcut, but when you change pages it will turn back on. If you keep this setting off, Sticky Headings will behave as it always has - you will have to toggle it on and off manually.
 - now compatible with Augmented Headings extension, which allows H4-H6 level headings in addition to the Roam native H1-H3
 
 No configuration is required. When the extension is loaded you have two options to turn on Sticky Headings such that any blocks set as headings in your graph will be sticky:
