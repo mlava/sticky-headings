@@ -1,8 +1,52 @@
 var stickyHeadingsState = false;
 let myEventHandler = undefined;
+let alwaysOn = false;
+let hashChange = undefined;
 
 export default {
     onload: ({ extensionAPI }) => {
+        const config = {
+            tabTitle: "Sticky Headings",
+            settings: [
+                {
+                    id: "sh-alwaysOn",
+                    name: "Always on mode",
+                    description: "Switch on to keep Sticky Headings always enabled",
+                    action: {
+                        type: "switch",
+                        onChange: (evt) => { setalwaysOn(evt); }
+                    },
+                },
+            ]
+        };
+        extensionAPI.settings.panel.create(config);
+
+        if (extensionAPI.settings.get("sh-alwaysOn") == true) { // onload
+            alwaysOn = true;
+            stickyHeadingsOn();
+        }
+
+        async function setalwaysOn(evt) { // onchange
+            if (evt.target.checked) {
+                alwaysOn = true;
+                stickyHeadingsOn();
+            } else {
+                alwaysOn = false;
+                stickyHeadingsOff();
+            }
+        }
+
+        hashChange = async (e) => {
+            if (extensionAPI.settings.get("sh-alwaysOn") == true) {
+                alwaysOn = true;
+                stickyHeadingsOn();
+            } else {
+                alwaysOn = false;
+                stickyHeadingsOff();
+            }
+        };
+        window.addEventListener('hashchange', hashChange);
+
         window.roamAlphaAPI.ui.commandPalette.addCommand({
             label: "Toggle Sticky Headings",
             callback: () => stickyHeadingsToggle()
@@ -28,17 +72,6 @@ export default {
         }
         window.removeEventListener('keydown', myEventHandler, false);
     }
-}
-
-function RGBAToHexA(rgba, forceRemoveAlpha) { // courtesy of Lars Flieger at https://stackoverflow.com/questions/49974145/how-to-convert-rgba-to-hex-color-code-using-javascript
-    return "#" + rgba.replace(/^rgba?\(|\s+|\)$/g, '') // Get's rgba / rgb string values
-        .split(',') // splits them at ","
-        .filter((string, index) => !forceRemoveAlpha || index !== 3)
-        .map(string => parseFloat(string)) // Converts them to numbers
-        .map((number, index) => index === 3 ? Math.round(number * 255) : number) // Converts alpha to 255 number
-        .map(number => number.toString(16)) // Converts numbers to hex
-        .map(string => string.length === 1 ? "0" + string : string) // Adds 0 when length of one number is 1
-        .join("") // Puts the array to togehter to a string
 }
 
 function stickyHeadingsToggle() {
@@ -192,4 +225,16 @@ function stickyHeadingsOff() {
         head.removeChild(cssStyles);
     }
     stickyHeadingsState = false;
+}
+
+// helper functions
+function RGBAToHexA(rgba, forceRemoveAlpha) { // courtesy of Lars Flieger at https://stackoverflow.com/questions/49974145/how-to-convert-rgba-to-hex-color-code-using-javascript
+    return "#" + rgba.replace(/^rgba?\(|\s+|\)$/g, '') // Get's rgba / rgb string values
+        .split(',') // splits them at ","
+        .filter((string, index) => !forceRemoveAlpha || index !== 3)
+        .map(string => parseFloat(string)) // Converts them to numbers
+        .map((number, index) => index === 3 ? Math.round(number * 255) : number) // Converts alpha to 255 number
+        .map(number => number.toString(16)) // Converts numbers to hex
+        .map(string => string.length === 1 ? "0" + string : string) // Adds 0 when length of one number is 1
+        .join("") // Puts the array to togehter to a string
 }
