@@ -1,5 +1,4 @@
 var stickyHeadingsState = false;
-let myEventHandler = undefined;
 let alwaysOn = false;
 let hashChange = undefined;
 
@@ -47,30 +46,19 @@ export default {
         };
         window.addEventListener('hashchange', hashChange);
 
-        window.roamAlphaAPI.ui.commandPalette.addCommand({
+        extensionAPI.ui.commandPalette.addCommand({
             label: "Toggle Sticky Headings",
             callback: () => stickyHeadingsToggle()
         });
         stickyHeadingsState = false; //onload
-
-        myEventHandler = function (e) {
-            if (e.code === 'KeyS' && e.shiftKey && e.altKey) {
-                e.preventDefault();
-                stickyHeadingsToggle();
-            }
-        }
-        window.addEventListener('keydown', myEventHandler, false);
     },
     onunload: () => {
-        window.roamAlphaAPI.ui.commandPalette.removeCommand({
-            label: 'Toggle Sticky Headings'
-        });
         var head = document.getElementsByTagName("head")[0];
         if (document.getElementById("sticky-css")) {
             var cssStyles = document.getElementById("sticky-css");
             head.removeChild(cssStyles);
         }
-        window.removeEventListener('keydown', myEventHandler, false);
+        window.removeEventListener('hashchange', hashChange);
     }
 }
 
