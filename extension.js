@@ -1,228 +1,424 @@
-var stickyHeadingsState = false;
+let stickyHeadingsState = false;
 let alwaysOn = false;
 let hashChange = undefined;
+let themeObserver = null;
+let appObserver = null;
 
 export default {
-    onload: ({ extensionAPI }) => {
-        const config = {
-            tabTitle: "Sticky Headings",
-            settings: [
-                {
-                    id: "sh-alwaysOn",
-                    name: "Always on mode",
-                    description: "Switch on to keep Sticky Headings always enabled",
-                    action: {
-                        type: "switch",
-                        onChange: (evt) => { setalwaysOn(evt); }
-                    },
-                },
-            ]
-        };
-        extensionAPI.settings.panel.create(config);
-
-        if (extensionAPI.settings.get("sh-alwaysOn") == true) { // onload
-            alwaysOn = true;
-            stickyHeadingsOn();
-        }
-
-        async function setalwaysOn(evt) { // onchange
-            if (evt.target.checked) {
-                alwaysOn = true;
-                stickyHeadingsOn();
-            } else {
-                alwaysOn = false;
+  onload: ({ extensionAPI }) => {
+    const config = {
+      tabTitle: "Sticky Headings",
+      settings: [
+        {
+          id: "sh-alwaysOn",
+          name: "Always on mode",
+          description: "Keep Sticky Headings always enabled",
+          action: { type: "switch", onChange: (evt) => setAlwaysOn(evt) },
+        },
+        {
+          id: "sh-applyH456",
+          name: "Apply to h4–h6 (tagged)",
+          description:
+            "Also stick blocks tagged as h4–h6 via Augmented Headings tags (guarded to avoid over-matching).",
+          action: {
+            type: "switch",
+            onChange: () => {
+              if (stickyHeadingsState) {
                 stickyHeadingsOff();
-            }
-        }
-
-        hashChange = async (e) => {
-            if (extensionAPI.settings.get("sh-alwaysOn") == true) {
-                alwaysOn = true;
                 stickyHeadingsOn();
-            } else {
-                alwaysOn = false;
-                stickyHeadingsOff();
-            }
-        };
-        window.addEventListener('hashchange', hashChange);
+              }
+            },
+          },
+        },
+      ],
+    };
+    extensionAPI.settings.panel.create(config);
 
-        extensionAPI.ui.commandPalette.addCommand({
-            label: "Toggle Sticky Headings",
-            callback: () => stickyHeadingsToggle()
-        });
-        stickyHeadingsState = false; //onload
-    },
-    onunload: () => {
-        var head = document.getElementsByTagName("head")[0];
-        if (document.getElementById("sticky-css")) {
-            var cssStyles = document.getElementById("sticky-css");
-            head.removeChild(cssStyles);
-        }
-        window.removeEventListener('hashchange', hashChange);
+    if (extensionAPI.settings.get("sh-alwaysOn") === true) {
+      alwaysOn = true;
+      stickyHeadingsOn();
     }
-}
+
+    async function setAlwaysOn(evt) {
+      if (evt?.target?.checked) {
+        alwaysOn = true;
+        stickyHeadingsOn();
+      } else {
+        alwaysOn = false;
+        stickyHeadingsOff();
+      }
+    }
+
+    // Re-evaluate when the page hash changes (navigation)
+    hashChange = async () => {
+      if (extensionAPI.settings.get("sh-alwaysOn") === true) {
+        alwaysOn = true;
+        stickyHeadingsOn();
+      } else {
+        alwaysOn = false;
+        stickyHeadingsOff();
+      }
+    };
+    window.addEventListener("hashchange", hashChange);
+
+    // Command palette toggle
+    extensionAPI.ui.commandPalette.addCommand({
+      label: "Toggle Sticky Headings",
+      callback: () => stickyHeadingsToggle(),
+    });
+
+    // Set up reactive observers for theme/style changes
+    setupThemeObservers();
+
+    stickyHeadingsState = false; // explicit onload
+  },
+
+  onunload: () => {
+    // Remove injected CSS
+    const head = document.getElementsByTagName("head")[0];
+    const css = document.getElementById("sticky-css");
+    if (css) head.removeChild(css);
+
+    // Tear down listeners/observers
+    window.removeEventListener("hashchange", hashChange);
+    if (themeObserver) {
+      themeObserver.disconnect();
+      themeObserver = null;
+    }
+    if (appObserver) {
+      appObserver.disconnect();
+      appObserver = null;
+    }
+  },
+};
 
 function stickyHeadingsToggle() {
-    if (stickyHeadingsState == false) {
-        stickyHeadingsOn();
-    } else {
-        stickyHeadingsOff();
-    }
+  if (stickyHeadingsState === false) {
+    stickyHeadingsOn();
+  } else {
+    stickyHeadingsOff();
+  }
 }
 
 function stickyHeadingsOn() {
-    var comph1, comph2, comph3, appBG, h1BG, h2BG, h3BG, h1CSS, h2CSS, h3CSS, h4BG, h5BG, h6BG;
-    var h2Margin = 0;
-    var h3Margin = 0;
-    var h4Margin = 0;
-    var h5Margin = 0;
-    var h6Margin = 0;
-    var cssString = "";
+  // Remove any stale style first
+  const head = document.getElementsByTagName("head")[0];
+  const existing = document.getElementById("sticky-css");
+  if (existing) head.removeChild(existing);
 
-    const body = document.body;
-    const app = document.querySelector(".roam-body .roam-app");
-    const compApp = window.getComputedStyle(app);
-    if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
-        appBG = "#30404d";
-    } else {
-        if (compApp["backgroundColor"] == "rgba(0, 0, 0, 0)") {
-            appBG = "white";
-        } else {
-            appBG = RGBAToHexA(compApp["backgroundColor"], true);
-        }
-    }
-    const appWidth = compApp["width"];
-    const h1 = document.querySelector(".rm-heading-level-1 > .rm-block-main.rm-block__self:first-child");
-    const h2 = document.querySelector(".rm-heading-level-2 > .rm-block-main.rm-block__self:first-child");
-    const h3 = document.querySelector(".rm-heading-level-3 > .rm-block-main.rm-block__self:first-child");
-    if (h1 != null) {
-        comph1 = window.getComputedStyle(h1);
-        if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
-            h1BG = "#30404d";
-        } else if (comph1["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph1["backgroundColor"] == "rgb(255, 255, 255)") {
-            h1BG = appBG;
-        } else {
-            h1BG = RGBAToHexA(comph1["backgroundColor"], true);
-        }
-        h2Margin = parseInt(comph1.height) - 1;
-        h3Margin = parseInt(comph1.height) - 1;
-        h4Margin = parseInt(comph1.height) - 1;
-        h5Margin = parseInt(comph1.height) - 1;
-        h6Margin = parseInt(comph1.height) - 1;
-        h1CSS = ".rm-heading-level-1 > .rm-block-main.rm-block__self:first-child {background-color: " + h1BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 18 !important; top: -1px !important;} ";
-        cssString += h1CSS;
-    } else {
-        h2Margin = h2Margin - 1;
-        h3Margin = h3Margin - 1;
-        h4Margin = h4Margin - 1;
-        h5Margin = h5Margin - 1;
-        h6Margin = h6Margin - 1;
-    }
-    if (h2 != null) {
-        comph2 = window.getComputedStyle(h2);
-        if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
-            h2BG = "#30404d";
-        } else if (comph2["backgroundColor"] == "rgba(0, 0, 0, 0)") {
-            h2BG = appBG;
-        } else {
-            h2BG = RGBAToHexA(comph2["backgroundColor"], true);
-        }
-        h2CSS = ".rm-heading-level-2 > .rm-block-main.rm-block__self:first-child {background-color: " + h2BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 17 !important; top: " + h2Margin + "px !important;} ";
-        cssString += h2CSS;
-        h3Margin = h2Margin + parseInt(comph2.height);
-    }
-    if (h3 != null) {
-        comph3 = window.getComputedStyle(h3);
-        if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
-            h3BG = "#30404d";
-        } else if (comph3["backgroundColor"] == "rgba(0, 0, 0, 0)") {
-            h3BG = appBG;
-        } else {
-            h3BG = RGBAToHexA(comph3["backgroundColor"], true);
-        }
-        h3CSS = ".rm-heading-level-3 > .rm-block-main.rm-block__self:first-child {background-color: " + h3BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 16 !important; top: " + h3Margin + "px !important;} ";
-        cssString += h3CSS;
-        h4Margin = h3Margin + parseInt(comph3.height);
-    }
-    if (localStorage.getItem("augmented_headings:h4")) {
-        var h4Tag = localStorage.getItem("augmented_headings:h4");
-        if (document.querySelector("[data-tag^='" + h4Tag + "'] + .rm-highlight")) {
-            const h4 = document.querySelector("[data-page-links^='[\"" + h4Tag + "\"]'] > .rm-block-main.rm-block__self:first-child");
-            var comph4 = window.getComputedStyle(h4);
-            if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
-                h4BG = "#30404d";
-            } else if (comph4["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph4["backgroundColor"] == "rgb(255, 255, 255)") {
-                h4BG = appBG;
-            } else {
-                h4BG = RGBAToHexA(comph4["backgroundColor"], true);
-            }
-            var h4CSS = "[data-page-links^='[\"" + h4Tag + "\"]'] > .rm-block-main.rm-block__self:first-child {background-color: " + h4BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 15 !important; top: " + h4Margin + "px !important;} ";
-            cssString += h4CSS;
-            h5Margin = h4Margin + parseInt(comph4.height);
-        }
-    }
-    if (localStorage.getItem("augmented_headings:h5")) {
-        var h5Tag = localStorage.getItem("augmented_headings:h5");
-        if (document.querySelector("[data-tag^='" + h5Tag + "'] + .rm-highlight")) {
-            const h5 = document.querySelector("[data-page-links^='[\"" + h5Tag + "\"]'] > .rm-block-main.rm-block__self:first-child");
-            var comph5 = window.getComputedStyle(h5);
-            if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
-                h5BG = "#30404d";
-            } else if (comph5["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph5["backgroundColor"] == "rgb(255, 255, 255)") {
-                h5BG = appBG;
-            } else {
-                h5BG = RGBAToHexA(comph5["backgroundColor"], true);
-            }
-            var h5CSS = "[data-page-links^='[\"" + h5Tag + "\"]'] > .rm-block-main.rm-block__self:first-child {background-color: " + h5BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 14 !important; top: " + h5Margin + "px !important;} ";
-            cssString += h5CSS;
-            h6Margin = h5Margin + parseInt(comph5.height);
-        }
-    }
-    if (localStorage.getItem("augmented_headings:h6")) {
-        var h6Tag = localStorage.getItem("augmented_headings:h6");
-        if (document.querySelector("[data-tag^='" + h6Tag + "'] + .rm-highlight")) {
-            const h6 = document.querySelector("[data-page-links^='[\"" + h6Tag + "\"]'] > .rm-block-main.rm-block__self:first-child");
-            var comph6 = window.getComputedStyle(h6);
-            if (body.classList[0] == "bp3-dark") { // this is Roam "Native" Dark dark mode
-                h6BG = "#30404d";
-            } else if (comph6["backgroundColor"] == "rgba(0, 0, 0, 0)" || comph6["backgroundColor"] == "rgb(255, 255, 255)") {
-                h6BG = appBG;
-            } else {
-                h6BG = RGBAToHexA(comph6["backgroundColor"], true);
-            }
-            var h6CSS = "[data-page-links^='[\"" + h6Tag + "\"]'] > .rm-block-main.rm-block__self:first-child {background-color: " + h6BG + " !important; opacity: 1.0 !important; will-change: transform !important; position: sticky !important; z-index: 13 !important; top: " + h6Margin + "px !important;} ";
-            cssString += h6CSS;
-        }
-    }
-    // CSS adapted and modified from a post on Slack shared by Fabrice Gallet https://roamresearch.slack.com/archives/C016N2B66JU/p1667846823724739?thread_ts=1667816335.849789&cid=C016N2B66JU
+  const app = document.querySelector(".roam-body .roam-app");
+  const appBG = getEffectiveBgColor(app || document.body);
 
-    let roamFixCSS = ".rm-article-wrapper {margin-top: -2px !important;}";
-    cssString += roamFixCSS;
-    var head = document.getElementsByTagName("head")[0];
-    var style = document.createElement("style");
-    style.id = "sticky-css";
-    style.textContent = cssString;
-    head.appendChild(style);
-    stickyHeadingsState = true;
+  // First visible h1–h3
+  const h1 = document.querySelector(
+    ".rm-heading-level-1 > .rm-block-main.rm-block__self:first-child"
+  );
+  const h2 = document.querySelector(
+    ".rm-heading-level-2 > .rm-block-main.rm-block__self:first-child"
+  );
+  const h3 = document.querySelector(
+    ".rm-heading-level-3 > .rm-block-main.rm-block__self:first-child"
+  );
+
+  let cssString = "";
+  let h2Margin = 0;
+  let h3Margin = 0;
+  let h4Margin = 0;
+  let h5Margin = 0;
+  let h6Margin = 0;
+
+  if (h1) {
+    const comph1 = window.getComputedStyle(h1);
+    const h1BG = resolveStickyBg(h1, appBG);
+    const h1Height = pxToNumber(comph1.height);
+    h2Margin = Math.max(0, h1Height - 1);
+    h3Margin = h2Margin;
+    h4Margin = h2Margin;
+    h5Margin = h2Margin;
+    h6Margin = h2Margin;
+
+    cssString +=
+      `.rm-heading-level-1 > .rm-block-main.rm-block__self:first-child {` +
+      `background-color: ${h1BG} !important;` +
+      `background-clip: padding-box !important;` +
+      `position: sticky !important;` +
+      `z-index: 18 !important;` +
+      `top: -1px !important;` +
+      `opacity: 1 !important;` +
+      `}`;
+  } else {
+    h2Margin -= 1;
+    h3Margin -= 1;
+    h4Margin -= 1;
+    h5Margin -= 1;
+    h6Margin -= 1;
+  }
+
+  if (h2) {
+    const comph2 = window.getComputedStyle(h2);
+    const h2BG = resolveStickyBg(h2, appBG);
+    const h2Height = pxToNumber(comph2.height);
+    cssString +=
+      `.rm-heading-level-2 > .rm-block-main.rm-block__self:first-child {` +
+      `background-color: ${h2BG} !important;` +
+      `background-clip: padding-box !important;` +
+      `position: sticky !important;` +
+      `z-index: 17 !important;` +
+      `top: ${h2Margin}px !important;` +
+      `opacity: 1 !important;` +
+      `}`;
+    h3Margin = h2Margin + h2Height;
+  }
+
+  if (h3) {
+    const comph3 = window.getComputedStyle(h3);
+    const h3BG = resolveStickyBg(h3, appBG);
+    const h3Height = pxToNumber(comph3.height);
+    cssString +=
+      `.rm-heading-level-3 > .rm-block-main.rm-block__self:first-child {` +
+      `background-color: ${h3BG} !important;` +
+      `background-clip: padding-box !important;` +
+      `position: sticky !important;` +
+      `z-index: 16 !important;` +
+      `top: ${h3Margin}px !important;` +
+      `opacity: 1 !important;` +
+      `}`;
+    h4Margin = h3Margin + h3Height;
+  }
+
+  // Optional h4–h6 via Augmented Headings tags (guarded)
+  const applyH456 = !!roamSetting("sh-applyH456");
+
+  if (applyH456 && localStorage.getItem("augmented_headings:h4")) {
+    const h4Tag = localStorage.getItem("augmented_headings:h4");
+    const h4 = selectAugHeadBlock(h4Tag);
+    if (h4 && isLikelyHeadingBlock(h4)) {
+      const comph4 = window.getComputedStyle(h4);
+      const h4BG = resolveStickyBg(h4, appBG);
+      const h4Height = pxToNumber(comph4.height);
+      cssString +=
+        `[data-page-links^='["${cssEscape(h4Tag)}"]'] > .rm-block-main.rm-block__self:first-child {` +
+        `background-color: ${h4BG} !important;` +
+        `background-clip: padding-box !important;` +
+        `position: sticky !important;` +
+        `z-index: 15 !important;` +
+        `top: ${h4Margin}px !important;` +
+        `opacity: 1 !important;` +
+        `}`;
+      h5Margin = h4Margin + h4Height;
+    }
+  }
+
+  if (applyH456 && localStorage.getItem("augmented_headings:h5")) {
+    const h5Tag = localStorage.getItem("augmented_headings:h5");
+    const h5 = selectAugHeadBlock(h5Tag);
+    if (h5 && isLikelyHeadingBlock(h5)) {
+      const comph5 = window.getComputedStyle(h5);
+      const h5BG = resolveStickyBg(h5, appBG);
+      const h5Height = pxToNumber(comph5.height);
+      cssString +=
+        `[data-page-links^='["${cssEscape(h5Tag)}"]'] > .rm-block-main.rm-block__self:first-child {` +
+        `background-color: ${h5BG} !important;` +
+        `background-clip: padding-box !important;` +
+        `position: sticky !important;` +
+        `z-index: 14 !important;` +
+        `top: ${h5Margin}px !important;` +
+        `opacity: 1 !important;` +
+        `}`;
+      h6Margin = h5Margin + h5Height;
+    }
+  }
+
+  if (applyH456 && localStorage.getItem("augmented_headings:h6")) {
+    const h6Tag = localStorage.getItem("augmented_headings:h6");
+    const h6 = selectAugHeadBlock(h6Tag);
+    if (h6 && isLikelyHeadingBlock(h6)) {
+      const h6BG = resolveStickyBg(h6, appBG);
+      cssString +=
+        `[data-page-links^='["${cssEscape(h6Tag)}"]'] > .rm-block-main.rm-block__self:first-child {` +
+        `background-color: ${h6BG} !important;` +
+        `background-clip: padding-box !important;` +
+        `position: sticky !important;` +
+        `z-index: 13 !important;` +
+        `top: ${h6Margin}px !important;` +
+        `opacity: 1 !important;` +
+        `}`;
+    }
+  }
+
+  // Keep the small Roam offset fix
+  cssString += `.rm-article-wrapper {margin-top: -2px !important;}`;
+
+  const style = document.createElement("style");
+  style.id = "sticky-css";
+  style.textContent = cssString;
+  head.appendChild(style);
+
+  stickyHeadingsState = true;
 }
 
 function stickyHeadingsOff() {
-    var head = document.getElementsByTagName("head")[0];
-    if (document.getElementById("sticky-css")) {
-        var cssStyles = document.getElementById("sticky-css");
-        head.removeChild(cssStyles);
-    }
-    stickyHeadingsState = false;
+  const head = document.getElementsByTagName("head")[0];
+  const css = document.getElementById("sticky-css");
+  if (css) head.removeChild(css);
+  stickyHeadingsState = false;
 }
 
-// helper functions
-function RGBAToHexA(rgba, forceRemoveAlpha) { // courtesy of Lars Flieger at https://stackoverflow.com/questions/49974145/how-to-convert-rgba-to-hex-color-code-using-javascript
-    return "#" + rgba.replace(/^rgba?\(|\s+|\)$/g, '') // Get's rgba / rgb string values
-        .split(',') // splits them at ","
-        .filter((string, index) => !forceRemoveAlpha || index !== 3)
-        .map(string => parseFloat(string)) // Converts them to numbers
-        .map((number, index) => index === 3 ? Math.round(number * 255) : number) // Converts alpha to 255 number
-        .map(number => number.toString(16)) // Converts numbers to hex
-        .map(string => string.length === 1 ? "0" + string : string) // Adds 0 when length of one number is 1
-        .join("") // Puts the array to togehter to a string
+/* =========================
+   Theme Reactivity
+   ========================= */
+
+function setupThemeObservers() {
+  const debouncedReapply = debounce(() => {
+    // Only apply when user expects it (alwaysOn or currently toggled on)
+    if (alwaysOn || stickyHeadingsState) {
+      stickyHeadingsOn();
+    }
+  }, 50);
+
+  // Observe html/body attribute flips (class/style/data-theme)
+  themeObserver = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (
+        m.type === "attributes" &&
+        (m.attributeName === "class" ||
+          m.attributeName === "style" ||
+          m.attributeName === "data-theme")
+      ) {
+        debouncedReapply();
+        return;
+      }
+      if (m.type === "childList") {
+        // new/removed stylesheets
+        const added = Array.from(m.addedNodes || []);
+        const removed = Array.from(m.removedNodes || []);
+        if (
+          added.some(
+            (n) =>
+              n.nodeType === 1 &&
+              ((n.tagName === "STYLE") ||
+                (n.tagName === "LINK" &&
+                  (n).rel &&
+                  (n).rel.toLowerCase() === "stylesheet"))
+          ) ||
+          removed.some(
+            (n) =>
+              n.nodeType === 1 &&
+              ((n.tagName === "STYLE") ||
+                (n.tagName === "LINK" &&
+                  (n).rel &&
+                  (n).rel.toLowerCase() === "stylesheet"))
+          )
+        ) {
+          debouncedReapply();
+          return;
+        }
+      }
+    }
+  });
+
+  // html/body attributes + head stylesheet churn
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["class", "style", "data-theme"],
+    subtree: false,
+  });
+  themeObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ["class", "style", "data-theme"],
+    subtree: false,
+  });
+  const head = document.head || document.getElementsByTagName("head")[0];
+  if (head) {
+    themeObserver.observe(head, { childList: true, subtree: true });
+  }
+
+  // Also watch .roam-app for class/style flips (some themes toggle here)
+  const app = document.querySelector(".roam-body .roam-app");
+  if (app) {
+    appObserver = new MutationObserver(() => debouncedReapply());
+    appObserver.observe(app, {
+      attributes: true,
+      attributeFilter: ["class", "style"],
+      subtree: false,
+    });
+  }
+}
+
+/* ========================
+   Helpers
+   ======================== */
+
+function roamSetting(id) {
+  try {
+    return window?.roamAlphaAPI?.settings?.get?.(id) ??
+      document.querySelector(`[data-setting-id="${id}"][aria-checked="true"]`)
+      ? true
+      : window.__sticky_headings_fallback?.[id] ?? false;
+  } catch {
+    return false;
+  }
+}
+
+function pxToNumber(px) {
+  const n = parseFloat(px);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// Walk up ancestors to find the first non-transparent computed background color.
+function getEffectiveBgColor(el) {
+  let cur = el;
+  while (cur && cur !== document.documentElement) {
+    const bg = getComputedStyle(cur).backgroundColor;
+    if (bg && bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent") return bg;
+    cur = cur.parentElement || cur.parentNode;
+  }
+  const root = getComputedStyle(document.documentElement).backgroundColor;
+  if (root && root !== "rgba(0, 0, 0, 0)" && root !== "transparent") return root;
+
+  const bodyBG = getComputedStyle(document.body).backgroundColor;
+  return bodyBG || "transparent";
+}
+
+// Prefer element's own painted color; otherwise its effective inherited bg.
+// If everything is transparent, fall back to app/page bg or "inherit".
+function resolveStickyBg(el, appBG) {
+  const own = getComputedStyle(el).backgroundColor;
+  if (own && own !== "rgba(0, 0, 0, 0)" && own !== "transparent") return own;
+
+  const eff = getEffectiveBgColor(el);
+  if (eff && eff !== "rgba(0, 0, 0, 0)" && eff !== "transparent") return eff;
+
+  return appBG || "inherit";
+}
+
+function selectAugHeadBlock(tag) {
+  if (!tag) return null;
+  const escaped = cssEscape(tag);
+  return document.querySelector(
+    `[data-page-links^='["${escaped}"]'] > .rm-block-main.rm-block__self:first-child`
+  );
+}
+
+function isLikelyHeadingBlock(el) {
+  if (!el) return false;
+  if (
+    el.closest(".rm-heading-level-1, .rm-heading-level-2, .rm-heading-level-3")
+  ) {
+    return true;
+  }
+  const h = pxToNumber(getComputedStyle(el).height);
+  return h > 0 && h < 120;
+}
+
+function cssEscape(str) {
+  return String(str).replace(/["\\]/g, "\\$&");
+}
+
+function debounce(fn, wait) {
+  let t = null;
+  return function (...args) {
+    if (t) clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), wait);
+  };
 }
