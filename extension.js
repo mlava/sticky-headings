@@ -1,5 +1,7 @@
 let stickyHeadingsState = false;
 let alwaysOn = false;
+let applyH456 = false;
+let lastCssString = "";
 let hashChange = undefined;
 let themeObserver = null;
 let appObserver = null;
@@ -19,10 +21,11 @@ export default {
           id: "sh-applyH456",
           name: "Apply to h4–h6 (tagged)",
           description:
-            "Also stick blocks tagged as h4–h6 via Augmented Headings tags (guarded to avoid over-matching).",
+            "Also stick blocks tagged as h4–h6 via Augmented Headings tags.",
           action: {
             type: "switch",
-            onChange: () => {
+            onChange: (value) => {
+              applyH456 = value?.target?.checked === true;
               if (stickyHeadingsState) {
                 stickyHeadingsOff();
                 stickyHeadingsOn();
@@ -34,6 +37,7 @@ export default {
     };
     extensionAPI.settings.panel.create(config);
 
+    applyH456 = extensionAPI.settings.get("sh-applyH456") === true;
     if (extensionAPI.settings.get("sh-alwaysOn") === true) {
       alwaysOn = true;
       stickyHeadingsOn();
@@ -51,6 +55,7 @@ export default {
 
     // Re-evaluate when the page hash changes (navigation)
     hashChange = async () => {
+      applyH456 = extensionAPI.settings.get("sh-applyH456") === true;
       if (extensionAPI.settings.get("sh-alwaysOn") === true) {
         alwaysOn = true;
         stickyHeadingsOn();
@@ -61,16 +66,12 @@ export default {
     };
     window.addEventListener("hashchange", hashChange);
 
-    // Command palette toggle
     extensionAPI.ui.commandPalette.addCommand({
       label: "Toggle Sticky Headings",
       callback: () => stickyHeadingsToggle(),
     });
 
-    // Set up reactive observers for theme/style changes
     setupThemeObservers();
-
-    stickyHeadingsState = false; // explicit onload
   },
 
   onunload: () => {
@@ -101,14 +102,6 @@ function stickyHeadingsToggle() {
 }
 
 function stickyHeadingsOn() {
-  // Remove any stale style first
-  const head = document.getElementsByTagName("head")[0];
-  const existing = document.getElementById("sticky-css");
-  if (existing) head.removeChild(existing);
-
-  const app = document.querySelector(".roam-body .roam-app");
-  const appBG = getEffectiveBgColor(app || document.body);
-
   // First visible h1–h3
   const h1 = document.querySelector(
     ".rm-heading-level-1 > .rm-block-main.rm-block__self:first-child"
@@ -119,6 +112,22 @@ function stickyHeadingsOn() {
   const h3 = document.querySelector(
     ".rm-heading-level-3 > .rm-block-main.rm-block__self:first-child"
   );
+
+  // Optional h4–h6 via Augmented Headings tags
+  const h4Tag = applyH456 ? localStorage.getItem("augmented_headings:h4") : null;
+  const h5Tag = applyH456 ? localStorage.getItem("augmented_headings:h5") : null;
+  const h6Tag = applyH456 ? localStorage.getItem("augmented_headings:h6") : null;
+  const hasTagged = !!(h4Tag || h5Tag || h6Tag);
+
+  if (!h1 && !h2 && !h3 && !hasTagged) {
+    const cssString = `.rm-article-wrapper {margin-top: -2px !important;}`;
+    applyStickyCss(cssString);
+    stickyHeadingsState = true;
+    return;
+  }
+
+  const app = document.querySelector(".roam-body .roam-app");
+  const appBG = getEffectiveBgColor(app || document.body);
 
   let cssString = "";
   let h2Margin = 0;
@@ -186,11 +195,7 @@ function stickyHeadingsOn() {
     h4Margin = h3Margin + h3Height;
   }
 
-  // Optional h4–h6 via Augmented Headings tags (guarded)
-  const applyH456 = !!roamSetting("sh-applyH456");
-
-  if (applyH456 && localStorage.getItem("augmented_headings:h4")) {
-    const h4Tag = localStorage.getItem("augmented_headings:h4");
+  if (h4Tag) {
     const h4 = selectAugHeadBlock(h4Tag);
     if (h4 && isLikelyHeadingBlock(h4)) {
       const comph4 = window.getComputedStyle(h4);
@@ -209,8 +214,7 @@ function stickyHeadingsOn() {
     }
   }
 
-  if (applyH456 && localStorage.getItem("augmented_headings:h5")) {
-    const h5Tag = localStorage.getItem("augmented_headings:h5");
+  if (h5Tag) {
     const h5 = selectAugHeadBlock(h5Tag);
     if (h5 && isLikelyHeadingBlock(h5)) {
       const comph5 = window.getComputedStyle(h5);
@@ -229,8 +233,7 @@ function stickyHeadingsOn() {
     }
   }
 
-  if (applyH456 && localStorage.getItem("augmented_headings:h6")) {
-    const h6Tag = localStorage.getItem("augmented_headings:h6");
+  if (h6Tag) {
     const h6 = selectAugHeadBlock(h6Tag);
     if (h6 && isLikelyHeadingBlock(h6)) {
       const h6BG = resolveStickyBg(h6, appBG);
@@ -246,13 +249,9 @@ function stickyHeadingsOn() {
     }
   }
 
-  // Keep the small Roam offset fix
   cssString += `.rm-article-wrapper {margin-top: -2px !important;}`;
 
-  const style = document.createElement("style");
-  style.id = "sticky-css";
-  style.textContent = cssString;
-  head.appendChild(style);
+  applyStickyCss(cssString);
 
   stickyHeadingsState = true;
 }
@@ -261,6 +260,7 @@ function stickyHeadingsOff() {
   const head = document.getElementsByTagName("head")[0];
   const css = document.getElementById("sticky-css");
   if (css) head.removeChild(css);
+  lastCssString = "";
   stickyHeadingsState = false;
 }
 
@@ -270,11 +270,16 @@ function stickyHeadingsOff() {
 
 function setupThemeObservers() {
   const debouncedReapply = debounce(() => {
-    // Only apply when user expects it (alwaysOn or currently toggled on)
     if (alwaysOn || stickyHeadingsState) {
       stickyHeadingsOn();
     }
   }, 50);
+
+  const isStickyStyleNode = (node) =>
+    node &&
+    node.nodeType === 1 &&
+    node.tagName === "STYLE" &&
+    node.id === "sticky-css";
 
   // Observe html/body attribute flips (class/style/data-theme)
   themeObserver = new MutationObserver((mutations) => {
@@ -289,9 +294,18 @@ function setupThemeObservers() {
         return;
       }
       if (m.type === "childList") {
-        // new/removed stylesheets
         const added = Array.from(m.addedNodes || []);
         const removed = Array.from(m.removedNodes || []);
+        const addedOnlySticky = added.length > 0 && added.every(isStickyStyleNode);
+        const removedOnlySticky =
+          removed.length > 0 && removed.every(isStickyStyleNode);
+        if (
+          (addedOnlySticky && removed.length === 0) ||
+          (removedOnlySticky && added.length === 0) ||
+          (addedOnlySticky && removedOnlySticky)
+        ) {
+          continue;
+        }
         if (
           added.some(
             (n) =>
@@ -316,8 +330,7 @@ function setupThemeObservers() {
       }
     }
   });
-
-  // html/body attributes + head stylesheet churn
+  
   themeObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ["class", "style", "data-theme"],
@@ -332,8 +345,7 @@ function setupThemeObservers() {
   if (head) {
     themeObserver.observe(head, { childList: true, subtree: true });
   }
-
-  // Also watch .roam-app for class/style flips (some themes toggle here)
+  
   const app = document.querySelector(".roam-body .roam-app");
   if (app) {
     appObserver = new MutationObserver(() => debouncedReapply());
@@ -349,23 +361,11 @@ function setupThemeObservers() {
    Helpers
    ======================== */
 
-function roamSetting(id) {
-  try {
-    return window?.roamAlphaAPI?.settings?.get?.(id) ??
-      document.querySelector(`[data-setting-id="${id}"][aria-checked="true"]`)
-      ? true
-      : window.__sticky_headings_fallback?.[id] ?? false;
-  } catch {
-    return false;
-  }
-}
-
 function pxToNumber(px) {
   const n = parseFloat(px);
   return Number.isFinite(n) ? n : 0;
 }
 
-// Walk up ancestors to find the first non-transparent computed background color.
 function getEffectiveBgColor(el) {
   let cur = el;
   while (cur && cur !== document.documentElement) {
@@ -380,8 +380,6 @@ function getEffectiveBgColor(el) {
   return bodyBG || "transparent";
 }
 
-// Prefer element's own painted color; otherwise its effective inherited bg.
-// If everything is transparent, fall back to app/page bg or "inherit".
 function resolveStickyBg(el, appBG) {
   const own = getComputedStyle(el).backgroundColor;
   if (own && own !== "rgba(0, 0, 0, 0)" && own !== "transparent") return own;
@@ -413,6 +411,17 @@ function isLikelyHeadingBlock(el) {
 
 function cssEscape(str) {
   return String(str).replace(/["\\]/g, "\\$&");
+}
+
+function applyStickyCss(cssString) {
+  if (cssString === lastCssString) return;
+  const head = document.getElementsByTagName("head")[0];
+  const existing = document.getElementById("sticky-css");
+  const style = existing || document.createElement("style");
+  style.id = "sticky-css";
+  style.textContent = cssString;
+  if (!existing) head.appendChild(style);
+  lastCssString = cssString;
 }
 
 function debounce(fn, wait) {
