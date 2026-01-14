@@ -140,7 +140,7 @@ function stickyHeadingsOn() {
     const comph1 = window.getComputedStyle(h1);
     const h1BG = resolveStickyBg(h1, appBG);
     const h1Height = pxToNumber(comph1.height);
-    h2Margin = Math.max(0, h1Height - 1);
+    h2Margin = Math.max(0, h1Height - 2); // fix for peek through on scroll
     h3Margin = h2Margin;
     h4Margin = h2Margin;
     h5Margin = h2Margin;
