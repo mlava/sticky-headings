@@ -1,4 +1,4 @@
-# Sticky Headings (Roam Research)
+# Sticky Headings
 
 Ever scroll deep into a page and lose track of where you are? **Sticky Headings** keeps your current headings visible by making Roam headings “stick” to the top of the page while you scroll.
 
