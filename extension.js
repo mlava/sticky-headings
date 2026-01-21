@@ -6,6 +6,9 @@ let hashChange = undefined;
 let themeObserver = null;
 let appObserver = null;
 
+const AUGMENTED_HEADING_PROP = "ah-level";
+const MAX_QUERY_BATCH_SIZE = 25;
+
 export default {
   onload: ({ extensionAPI }) => {
     const config = {
@@ -19,9 +22,9 @@ export default {
         },
         {
           id: "sh-applyH456",
-          name: "Apply to h4–h6 (tagged)",
+          name: "Apply to h4–h6 (Augmented Headings extension)",
           description:
-            "Also stick blocks tagged as h4–h6 via Augmented Headings tags.",
+            "Also stick blocks marked as h4–h6 via Augmented Headings props or legacy tags.",
           action: {
             type: "switch",
             onChange: (value) => {
@@ -101,7 +104,7 @@ function stickyHeadingsToggle() {
   }
 }
 
-function stickyHeadingsOn() {
+async function stickyHeadingsOn() {
   // First visible h1–h3
   const h1 = document.querySelector(
     ".rm-heading-level-1 > .rm-block-main.rm-block__self:first-child"
@@ -113,11 +116,12 @@ function stickyHeadingsOn() {
     ".rm-heading-level-3 > .rm-block-main.rm-block__self:first-child"
   );
 
-  // Optional h4–h6 via Augmented Headings tags
+  // Optional h4–h6 via Augmented Headings props/tags
   const h4Tag = applyH456 ? localStorage.getItem("augmented_headings:h4") : null;
   const h5Tag = applyH456 ? localStorage.getItem("augmented_headings:h5") : null;
   const h6Tag = applyH456 ? localStorage.getItem("augmented_headings:h6") : null;
-  const hasTagged = !!(h4Tag || h5Tag || h6Tag);
+  const uidToLevel = applyH456 ? await getAugmentedHeadingLevels() : new Map();
+  const hasTagged = !!(h4Tag || h5Tag || h6Tag || uidToLevel.size);
 
   if (!h1 && !h2 && !h3 && !hasTagged) {
     const cssString = `.rm-article-wrapper {margin-top: -2px !important;}`;
@@ -195,57 +199,66 @@ function stickyHeadingsOn() {
     h4Margin = h3Margin + h3Height;
   }
 
-  if (h4Tag) {
-    const h4 = selectAugHeadBlock(h4Tag);
+  if (applyH456) {
+    const h4 = getFirstAugmentedHeadingEl("h4", uidToLevel) || selectAugHeadBlock(h4Tag);
     if (h4 && isLikelyHeadingBlock(h4)) {
       const comph4 = window.getComputedStyle(h4);
       const h4BG = resolveStickyBg(h4, appBG);
       const h4Height = pxToNumber(comph4.height);
-      cssString +=
-        `[data-page-links^='["${cssEscape(h4Tag)}"]'] > .rm-block-main.rm-block__self:first-child {` +
-        `background-color: ${h4BG} !important;` +
-        `background-clip: padding-box !important;` +
-        `position: sticky !important;` +
-        `z-index: 15 !important;` +
-        `top: ${h4Margin}px !important;` +
-        `opacity: 1 !important;` +
-        `}`;
+      cssString += buildAugmentedHeadingCss("h4", uidToLevel, h4Margin, 15, h4BG);
+      if (h4Tag) {
+        cssString +=
+          `[data-page-links^='["${cssEscape(h4Tag)}"]'] > .rm-block-main.rm-block__self:first-child {` +
+          `background-color: ${h4BG} !important;` +
+          `background-clip: padding-box !important;` +
+          `position: sticky !important;` +
+          `z-index: 15 !important;` +
+          `top: ${h4Margin}px !important;` +
+          `opacity: 1 !important;` +
+          `}`;
+      }
       h5Margin = h4Margin + h4Height;
     }
   }
 
-  if (h5Tag) {
-    const h5 = selectAugHeadBlock(h5Tag);
+  if (applyH456) {
+    const h5 = getFirstAugmentedHeadingEl("h5", uidToLevel) || selectAugHeadBlock(h5Tag);
     if (h5 && isLikelyHeadingBlock(h5)) {
       const comph5 = window.getComputedStyle(h5);
       const h5BG = resolveStickyBg(h5, appBG);
       const h5Height = pxToNumber(comph5.height);
-      cssString +=
-        `[data-page-links^='["${cssEscape(h5Tag)}"]'] > .rm-block-main.rm-block__self:first-child {` +
-        `background-color: ${h5BG} !important;` +
-        `background-clip: padding-box !important;` +
-        `position: sticky !important;` +
-        `z-index: 14 !important;` +
-        `top: ${h5Margin}px !important;` +
-        `opacity: 1 !important;` +
-        `}`;
+      cssString += buildAugmentedHeadingCss("h5", uidToLevel, h5Margin, 14, h5BG);
+      if (h5Tag) {
+        cssString +=
+          `[data-page-links^='["${cssEscape(h5Tag)}"]'] > .rm-block-main.rm-block__self:first-child {` +
+          `background-color: ${h5BG} !important;` +
+          `background-clip: padding-box !important;` +
+          `position: sticky !important;` +
+          `z-index: 14 !important;` +
+          `top: ${h5Margin}px !important;` +
+          `opacity: 1 !important;` +
+          `}`;
+      }
       h6Margin = h5Margin + h5Height;
     }
   }
 
-  if (h6Tag) {
-    const h6 = selectAugHeadBlock(h6Tag);
+  if (applyH456) {
+    const h6 = getFirstAugmentedHeadingEl("h6", uidToLevel) || selectAugHeadBlock(h6Tag);
     if (h6 && isLikelyHeadingBlock(h6)) {
       const h6BG = resolveStickyBg(h6, appBG);
-      cssString +=
-        `[data-page-links^='["${cssEscape(h6Tag)}"]'] > .rm-block-main.rm-block__self:first-child {` +
-        `background-color: ${h6BG} !important;` +
-        `background-clip: padding-box !important;` +
-        `position: sticky !important;` +
-        `z-index: 13 !important;` +
-        `top: ${h6Margin}px !important;` +
-        `opacity: 1 !important;` +
-        `}`;
+      cssString += buildAugmentedHeadingCss("h6", uidToLevel, h6Margin, 13, h6BG);
+      if (h6Tag) {
+        cssString +=
+          `[data-page-links^='["${cssEscape(h6Tag)}"]'] > .rm-block-main.rm-block__self:first-child {` +
+          `background-color: ${h6BG} !important;` +
+          `background-clip: padding-box !important;` +
+          `position: sticky !important;` +
+          `z-index: 13 !important;` +
+          `top: ${h6Margin}px !important;` +
+          `opacity: 1 !important;` +
+          `}`;
+      }
     }
   }
 
@@ -396,6 +409,130 @@ function selectAugHeadBlock(tag) {
   return document.querySelector(
     `[data-page-links^='["${escaped}"]'] > .rm-block-main.rm-block__self:first-child`
   );
+}
+
+async function getAugmentedHeadingLevels() {
+  if (!window.roamAlphaAPI?.q) return new Map();
+
+  const uids = Array.from(
+    new Set(
+      Array.from(document.querySelectorAll("[data-block-uid]"))
+        .map((el) => el.getAttribute("data-block-uid"))
+        .filter(Boolean)
+    )
+  );
+
+  if (!uids.length) return new Map();
+
+  const uidToLevel = new Map();
+  const chunks = [];
+  for (let i = 0; i < uids.length; i += MAX_QUERY_BATCH_SIZE) {
+    chunks.push(uids.slice(i, i + MAX_QUERY_BATCH_SIZE));
+  }
+
+  for (const chunk of chunks) {
+    const uidList = chunk.map((u) => `"${u}"`).join(" ");
+    const q = `[:find (pull ?b [:block/uid :block/props])
+               :where [?b :block/uid ?uid]
+                      [(contains? #{${uidList}} ?uid)]]`;
+
+    let res = [];
+    try {
+      res = await window.roamAlphaAPI.q(q);
+    } catch (err) {
+      res = [];
+    }
+
+    if (!res.length) {
+      for (const uid of chunk) {
+        try {
+          const pulled = await window.roamAlphaAPI.pull(
+            "[:block/uid :block/props]",
+            [":block/uid", uid]
+          );
+          res.push([{ uid: pulled?.[":block/uid"], props: pulled?.[":block/props"] }]);
+        } catch (err) {
+          // ignore
+        }
+      }
+    }
+
+    for (const row of res) {
+      const b = row?.[0];
+      const uid = b?.uid ?? b?.[":block/uid"];
+      if (!uid) continue;
+      const props = propsToObject(b?.[":block/props"] ?? b?.props);
+      const level = String(getPropValue(props, AUGMENTED_HEADING_PROP) ?? "")
+        .trim()
+        .toLowerCase();
+      if (level === "h4" || level === "h5" || level === "h6") {
+        uidToLevel.set(uid, level);
+      }
+    }
+  }
+
+  return uidToLevel;
+}
+
+function getFirstAugmentedHeadingEl(level, uidToLevel) {
+  if (!uidToLevel || uidToLevel.size === 0) return null;
+  const containers = document.querySelectorAll("[data-block-uid]");
+  for (const container of containers) {
+    const uid = container.getAttribute("data-block-uid");
+    if (!uid) continue;
+    if (uidToLevel.get(uid) === level) {
+      return container.querySelector(
+        ".rm-block-main.rm-block__self:first-child"
+      );
+    }
+  }
+  return null;
+}
+
+function buildAugmentedHeadingCss(level, uidToLevel, top, zIndex, bg) {
+  if (!uidToLevel || uidToLevel.size === 0) return "";
+  const rules = [];
+  for (const [uid, lvl] of uidToLevel.entries()) {
+    if (lvl !== level) continue;
+    const escUid = cssEscape(uid);
+    rules.push(
+      `[data-block-uid="${escUid}"] > .rm-block-main.rm-block__self:first-child {` +
+        `background-color: ${bg} !important;` +
+        `background-clip: padding-box !important;` +
+        `position: sticky !important;` +
+        `z-index: ${zIndex} !important;` +
+        `top: ${top}px !important;` +
+        `opacity: 1 !important;` +
+        `}`
+    );
+  }
+  return rules.join("");
+}
+
+function normalizePropKey(key) {
+  return String(key ?? "").replace(/^:+/, "");
+}
+
+function propsToObject(props) {
+  if (!props) return {};
+  if (typeof props.toJS === "function") return props.toJS();
+  if (typeof props.entries === "function") {
+    try {
+      return Object.fromEntries(props.entries());
+    } catch {
+      // fall through
+    }
+  }
+  return typeof props === "object" ? props : {};
+}
+
+function getPropValue(props, key) {
+  const obj = propsToObject(props);
+  const base = normalizePropKey(key);
+  for (const k of Object.keys(obj)) {
+    if (normalizePropKey(k) === base) return obj[k];
+  }
+  return null;
 }
 
 function isLikelyHeadingBlock(el) {
