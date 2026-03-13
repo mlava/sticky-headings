@@ -75,6 +75,49 @@ export default {
     });
 
     setupThemeObservers();
+
+    // Expose tools via RoamExtensionTools contract
+    window.RoamExtensionTools = window.RoamExtensionTools || {};
+    window.RoamExtensionTools["sticky-headings"] = {
+      name: "Sticky Headings",
+      version: "1.0",
+      tools: [
+        {
+          name: "sh_get_status",
+          description: "Check whether Sticky Headings is currently enabled or disabled.",
+          readOnly: true,
+          parameters: { type: "object", properties: {} },
+          execute: async () => {
+            return { enabled: stickyHeadingsState };
+          },
+        },
+        {
+          name: "sh_toggle",
+          description: "Toggle Sticky Headings on or off. Optionally force a specific state.",
+          readOnly: true,
+          parameters: {
+            type: "object",
+            properties: {
+              state: {
+                type: "string",
+                description: "Force 'on' or 'off'. Omit to toggle.",
+                enum: ["on", "off"],
+              },
+            },
+          },
+          execute: async ({ state } = {}) => {
+            if (state === "on") {
+              stickyHeadingsOn();
+            } else if (state === "off") {
+              stickyHeadingsOff();
+            } else {
+              stickyHeadingsToggle();
+            }
+            return { enabled: stickyHeadingsState };
+          },
+        },
+      ],
+    };
   },
 
   onunload: () => {
@@ -93,6 +136,8 @@ export default {
       appObserver.disconnect();
       appObserver = null;
     }
+
+    delete window.RoamExtensionTools?.["sticky-headings"];
   },
 };
 
